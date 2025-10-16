@@ -21,7 +21,8 @@ async function getTTSStream(text) {
     });
 
     const { body, statusCode } = await request(`${TTS_URL}?${params}`, {
-        headers: { 'User-Agent': 'Mozilla/5.0' }
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+        maxRedirections: 5
     });
 
     if (statusCode !== 200) {
@@ -35,7 +36,7 @@ async function getTTSStream(text) {
 module.exports = {
     name: 'gg',
     aliases: [],
-    description: 'Đọc văn bản tiếng Việt',
+    description: 'Chị Google ',
 
     async execute(message, args) {
         const voiceChannel = message.member?.voice?.channel;
@@ -81,22 +82,23 @@ module.exports = {
         connection.subscribe(player);
 
         try {
-            await entersState(connection, VoiceConnectionStatus.Ready, 15000);
+            await entersState(connection, VoiceConnectionStatus.Ready, 30000);
 
             const stream = await getTTSStream(text);
-            const resource = createAudioResource(stream);
+            const resource = createAudioResource(stream, { 
+                inlineVolume: false
+            });
 
             player.play(resource);
-            await entersState(player, AudioPlayerStatus.Playing, 5000);
-
-            await message.react('🔊').catch(() => {});
-
+            
             await new Promise((resolve, reject) => {
-                const timeout = setTimeout(() => reject(new Error('Timeout')), 60000);
+                const timeout = setTimeout(() => {
+                    reject(new Error('Playback timeout'));
+                }, 30_000);
                 
                 player.once(AudioPlayerStatus.Idle, () => {
                     clearTimeout(timeout);
-                    setTimeout(resolve, 2000);
+                    resolve();
                 });
                 
                 player.once('error', err => {
@@ -106,19 +108,20 @@ module.exports = {
             });
 
             await message.react('✅').catch(() => {});
+
         } catch (error) {
-            console.error('[TTS Error]', error);
+            console.error('[TTS Error]', error.message);
             await message.react('❌').catch(() => {});
         }
 
         // Auto disconnect khi không còn ai
         const checkEmpty = setInterval(() => {
-            const vc = message.guild.channels.cache.get(voiceChannel.id);
+            const vc = message.guild?.channels.cache.get(voiceChannel.id);
             if (!vc || vc.members.filter(m => !m.user.bot).size === 0) {
                 clearInterval(checkEmpty);
                 const conn = getVoiceConnection(voiceChannel.guild.id);
                 if (conn) conn.destroy();
             }
-        }, 10000);
+        }, 5000);
     }
 };
