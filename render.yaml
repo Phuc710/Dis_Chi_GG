@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: chi-gg-discord-bot
+    env: node
+    plan: free
+    region: singapore  # bạn có thể đổi thành oregon, frankfurt, v.v.
+    buildCommand: |
+      npm install
+    startCommand: |
+      node index.js
+    envVars:
+      - key: DISCORD_TOKEN
+        sync: false
+      - key: PREFIX
+        value: "!"
+      - key: PORT
+        value: "4000"
+    autoDeploy: true
+    healthCheckPath: /ping
+    ports:
+      - port: 4000
+        protocol: http
