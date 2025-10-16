@@ -30,8 +30,8 @@ client.once('clientReady', () => {
     
     client.user.setPresence({
         activities: [{ 
-            name: '!gg để đọc văn bản', 
-            type: ActivityType.Listening 
+            name: '!gg <text>', 
+            type: ActivityType.Playing,
         }],
         status: 'online'
     });
