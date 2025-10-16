@@ -10,39 +10,23 @@ const {
 const { request } = require('undici');
 
 const MAX_TEXT_LENGTH = 200;
-const TTS_BASE_URL = 'https://translate.googleapis.com/translate_tts';
-const READY_TIMEOUT_MS = 15_000;
-const PLAY_TIMEOUT_MS = 5_000;
-const IDLE_TIMEOUT_MS = 2_000;
+const TTS_URL = 'https://translate.googleapis.com/translate_tts';
 
-const SPEED_MAP = {
-    'slow': '0.5',
-    'normal': '1',
-    'fast': '2'
-};
-
-const VOICE_MAP = {
-    'female': 'tw-ob',
-    'male': 'gtx'
-};
-
-async function fetchTTSStream(text, lang = 'vi', speed = 'normal', voice = 'female') {
+async function getTTSStream(text) {
     const params = new URLSearchParams({
-        client: VOICE_MAP[voice] || VOICE_MAP['female'],
-        tl: lang,
+        client: 'tw',
+        tl: 'vi',
         ie: 'UTF-8',
-        q: text,
-        ttsspeed: SPEED_MAP[speed] || SPEED_MAP['normal']
+        q: text
     });
 
-    const { body, statusCode } = await request(`${TTS_BASE_URL}?${params.toString()}`, {
-        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; PhucxBot/1.0)' },
-        maxRedirections: 5
+    const { body, statusCode } = await request(`${TTS_URL}?${params}`, {
+        headers: { 'User-Agent': 'Mozilla/5.0' }
     });
 
     if (statusCode !== 200) {
         body?.resume?.();
-        throw new Error(`TTS request failed with status ${statusCode}`);
+        throw new Error(`TTS failed: ${statusCode}`);
     }
 
     return body;
@@ -51,103 +35,71 @@ async function fetchTTSStream(text, lang = 'vi', speed = 'normal', voice = 'fema
 module.exports = {
     name: 'gg',
     aliases: [],
-    usage: '!gg <text> [--en] [--male/--female] [--slow/--fast]',
-    description: 'Gọi Chị GG. Dùng !gg <text> với nhiều tùy chọn',
+    description: 'Đọc văn bản tiếng Việt',
 
     async execute(message, args) {
-        const member = message.member;
-        const voiceChannel = member?.voice?.channel;
-
-        if (!args || args.length === 0) {
-            return message.reply({
-                content: '❌ Vui lòng nhập nội dung!\n**Cách dùng:** `!gg <text>` hoặc `!gghelp` để xem hướng dẫn'
-            }).then(msg => setTimeout(() => msg.delete().catch(() => {}), 5000));
+        const voiceChannel = message.member?.voice?.channel;
+        
+        if (!args.length) {
+            return message.reply('❌ Vui lòng nhập nội dung! Ví dụ: `!gg xin chào`')
+                .then(m => setTimeout(() => m.delete().catch(() => {}), 5000));
         }
 
-        let lang = 'vi';
-        let speed = 'normal';
-        let voice = 'female';
-        let inputText = args.join(' ').trim();
+        const text = args.join(' ').trim();
 
-        if (inputText.includes('--en') || inputText.includes('-en')) {
-            lang = 'en';
-            inputText = inputText.replace(/--en|-en/g, '').trim();
-        }
-
-        if (inputText.includes('--male')) {
-            voice = 'male';
-            inputText = inputText.replace(/--male/g, '').trim();
-        } else if (inputText.includes('--female')) {
-            voice = 'female';
-            inputText = inputText.replace(/--female/g, '').trim();
-        }
-
-        if (inputText.includes('--slow')) {
-            speed = 'slow';
-            inputText = inputText.replace(/--slow/g, '').trim();
-        } else if (inputText.includes('--fast')) {
-            speed = 'fast';
-            inputText = inputText.replace(/--fast/g, '').trim();
-        } else if (inputText.includes('--normal')) {
-            speed = 'normal';
-            inputText = inputText.replace(/--normal/g, '').trim();
-        }
-
-        if (!inputText || inputText.length === 0) {
-            return message.reply({ content: '❌ Nội dung không được để trống!' })
-                .then(msg => setTimeout(() => msg.delete().catch(() => {}), 5000));
-        }
-
-        if (inputText.length > MAX_TEXT_LENGTH) {
-            return message.reply({
-                content: `❌ Nội dung quá dài! Tối đa ${MAX_TEXT_LENGTH} ký tự. (Hiện tại: ${inputText.length})`
-            }).then(msg => setTimeout(() => msg.delete().catch(() => {}), 5000));
+        if (text.length > MAX_TEXT_LENGTH) {
+            return message.reply(`❌ Quá dài! Tối đa ${MAX_TEXT_LENGTH} ký tự`)
+                .then(m => setTimeout(() => m.delete().catch(() => {}), 5000));
         }
 
         if (!voiceChannel) {
-            return message.reply({ content: '❌ Bạn cần ở trong voice channel!' })
-                .then(msg => setTimeout(() => msg.delete().catch(() => {}), 5000));
+            return message.reply('❌ Bạn cần ở trong voice channel!')
+                .then(m => setTimeout(() => m.delete().catch(() => {}), 5000));
         }
 
         const permissions = voiceChannel.permissionsFor(message.client.user);
         if (!permissions?.has('Connect') || !permissions?.has('Speak')) {
-            return message.reply({ content: '❌ Bot không có quyền vào/nói trong voice channel!' })
-                .then(msg => setTimeout(() => msg.delete().catch(() => {}), 5000));
+            return message.reply('❌ Bot không có quyền vào voice channel!')
+                .then(m => setTimeout(() => m.delete().catch(() => {}), 5000));
         }
 
         let connection = getVoiceConnection(voiceChannel.guild.id);
+        
         if (!connection || connection.joinConfig.channelId !== voiceChannel.id) {
             if (connection) connection.destroy();
+            
             connection = joinVoiceChannel({
                 channelId: voiceChannel.id,
                 guildId: voiceChannel.guild.id,
                 adapterCreator: voiceChannel.guild.voiceAdapterCreator,
-                selfDeaf: true
+                selfDeaf: true,
+                selfMute: false
             });
         }
 
-        const audioPlayer = createAudioPlayer();
-        connection.subscribe(audioPlayer);
+        const player = createAudioPlayer();
+        connection.subscribe(player);
 
         try {
-            await entersState(connection, VoiceConnectionStatus.Ready, READY_TIMEOUT_MS);
+            await entersState(connection, VoiceConnectionStatus.Ready, 15000);
 
-            const ttsStream = await fetchTTSStream(inputText, lang, speed, voice);
-            const resource = createAudioResource(ttsStream, { inlineVolume: true });
-            resource.volume?.setVolume(1.0);
+            const stream = await getTTSStream(text);
+            const resource = createAudioResource(stream);
 
-            audioPlayer.play(resource);
-            await entersState(audioPlayer, AudioPlayerStatus.Playing, PLAY_TIMEOUT_MS);
+            player.play(resource);
+            await entersState(player, AudioPlayerStatus.Playing, 5000);
 
             await message.react('🔊').catch(() => {});
 
             await new Promise((resolve, reject) => {
-                const timeout = setTimeout(() => reject(new Error('Playback timeout')), 60000);
-                audioPlayer.once(AudioPlayerStatus.Idle, () => {
+                const timeout = setTimeout(() => reject(new Error('Timeout')), 60000);
+                
+                player.once(AudioPlayerStatus.Idle, () => {
                     clearTimeout(timeout);
-                    setTimeout(resolve, IDLE_TIMEOUT_MS);
+                    setTimeout(resolve, 2000);
                 });
-                audioPlayer.once('error', err => {
+                
+                player.once('error', err => {
                     clearTimeout(timeout);
                     reject(err);
                 });
@@ -159,6 +111,7 @@ module.exports = {
             await message.react('❌').catch(() => {});
         }
 
+        // Auto disconnect khi không còn ai
         const checkEmpty = setInterval(() => {
             const vc = message.guild.channels.cache.get(voiceChannel.id);
             if (!vc || vc.members.filter(m => !m.user.bot).size === 0) {

@@ -1,19 +1,12 @@
 {
   "name": "chigg-tts-bot",
   "version": "1.0.0",
-  "description": "Discord Bot với Google Translate",
+  "description": "Discord Bot",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
-    "dev": "nodemon index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node index.js"
   },
-  "keywords": [
-    "discord",
-    "bot",
-    "tts",
-    "voice"
-  ],
+  "keywords": ["discord", "bot", "tts"],
   "author": "",
   "license": "ISC",
   "engines": {
@@ -29,8 +22,5 @@
     "opusscript": "^0.1.1",
     "sodium-native": "^4.3.1",
     "undici": "^7.2.2"
-  },
-  "devDependencies": {
-    "nodemon": "^3.1.9"
   }
 }

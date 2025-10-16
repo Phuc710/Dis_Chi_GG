@@ -13,6 +13,8 @@ const client = new Client({
 });
 
 client.commands = new Collection();
+
+// Load commands
 const commandFiles = fs.readdirSync('./commands').filter(f => f.endsWith('.js'));
 for (const file of commandFiles) {
     const command = require(`./commands/${file}`);
@@ -21,40 +23,19 @@ for (const file of commandFiles) {
 
 const prefix = process.env.PREFIX || '!';
 
-// Các status sẽ thay đổi theo chu kỳ
-const statuses = [
-    { name: '!gghelp || !gg', type: ActivityType.Listening },
-    { name: 'Chị Google 🔊', type: ActivityType.Listening }
-];
-
-let currentStatus = 0;
-
-client.on('ready', () => {
+client.once('clientReady', () => {
     console.log(`✅ BOT ONLINE: ${client.user.tag}`);
     console.log(`📊 Servers: ${client.guilds.cache.size}`);
     console.log(`👥 Users: ${client.users.cache.size}`);
     
-    // Set status ban đầu
-    updateStatus();
-    
-    // Đổi status mỗi 15 giây
-    setInterval(() => {
-        updateStatus();
-    }, 15000);
-});
-
-function updateStatus() {
-    const status = statuses[currentStatus];
     client.user.setPresence({
         activities: [{ 
-            name: status.name, 
-            type: status.type 
+            name: '!gg để đọc văn bản', 
+            type: ActivityType.Listening 
         }],
         status: 'online'
     });
-    
-    currentStatus = (currentStatus + 1) % statuses.length;
-}
+});
 
 client.on('messageCreate', async message => {
     if (message.author.bot || !message.content.startsWith(prefix)) return;
@@ -62,23 +43,21 @@ client.on('messageCreate', async message => {
     const args = message.content.slice(prefix.length).trim().split(/ +/);
     const commandName = args.shift().toLowerCase();
 
-    const command = client.commands.get(commandName)
-        || client.commands.find(cmd => cmd.aliases?.includes(commandName));
-
+    const command = client.commands.get(commandName);
     if (!command) return;
 
     try {
         await command.execute(message, args);
     } catch (err) {
         console.error(err);
-        message.reply('❌ Có lỗi xảy ra khi chạy lệnh này!');
+        message.reply('❌ Có lỗi xảy ra!');
     }
 });
 
 // Express server để Render giữ bot online
 const app = express();
 app.get('/ping', (req, res) => res.send('Bot is alive!'));
-const PORT = process.env.PORT || 4000;
+const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => console.log(`🌐 Server running on port ${PORT}`));
 
 client.login(process.env.DISCORD_TOKEN);
