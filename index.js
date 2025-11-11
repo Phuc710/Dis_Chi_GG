@@ -27,9 +27,11 @@ const client = new Client({
 const PREFIX = process.env.PREFIX || '!';
 const connections = new Map(); // Lưu trữ voice connections
 const autoLeaveTimers = new Map(); // Lưu trữ timers cho auto-leave
+const queues = new Map(); // Lưu trữ queues cho mỗi guild
+const isProcessing = new Map(); // Theo dõi guild đang xử lý
 
 // Khi bot sẵn sàng
-client.once('ready', () => {
+client.once('clientReady', () => {
     console.log(`✅ Bot đã đăng nhập: ${client.user.tag}`);
     
     // Đặt status cho bot
@@ -56,7 +58,7 @@ client.on('messageCreate', async (message) => {
     }
 });
 
-// Hàm xử lý lệnh !gg
+// Hàm xử lý lệnh !gg (thêm vào queue)
 async function handleGGCommand(message, args) {
     // Kiểm tra xem có text để đọc không
     if (args.length === 0) {
@@ -77,22 +79,64 @@ async function handleGGCommand(message, args) {
         return message.reply('❌ Bot không có quyền vào hoặc nói trong voice channel!');
     }
     
+    const guildId = message.guild.id;
+    
+    // Tạo queue cho guild nếu chưa có
+    if (!queues.has(guildId)) {
+        queues.set(guildId, []);
+    }
+    
+    // Thêm request vào queue
+    const queue = queues.get(guildId);
+    queue.push({
+        message,
+        text,
+        voiceChannel
+    });
+    
+    console.log(`📝 Đã thêm vào queue (guild: ${guildId}), tổng: ${queue.length}`);
+    
+    // Xử lý queue nếu chưa đang xử lý
+    if (!isProcessing.get(guildId)) {
+        processQueue(guildId);
+    }
+}
+
+// Hàm xử lý queue
+async function processQueue(guildId) {
+    const queue = queues.get(guildId);
+    
+    if (!queue || queue.length === 0) {
+        isProcessing.set(guildId, false);
+        return;
+    }
+    
+    isProcessing.set(guildId, true);
+    
+    // Lấy item đầu tiên trong queue
+    const item = queue.shift();
+    const { message, text, voiceChannel } = item;
+    
+    console.log(`🎵 Đang xử lý (guild: ${guildId}), còn ${queue.length} trong queue`);
+    
     try {
         // Tạo file TTS
         const audioUrl = await generateTTS(text);
         
-        // Join voice channel
-        const connection = joinVoiceChannel({
-            channelId: voiceChannel.id,
-            guildId: message.guild.id,
-            adapterCreator: message.guild.voiceAdapterCreator,
-        });
-        
-        // Lưu connection
-        connections.set(message.guild.id, connection);
-        
-        // Đợi connection sẵn sàng
-        await entersState(connection, VoiceConnectionStatus.Ready, 30_000);
+        // Join voice channel nếu chưa join
+        let connection = connections.get(guildId);
+        if (!connection || connection.state.status === VoiceConnectionStatus.Destroyed) {
+            connection = joinVoiceChannel({
+                channelId: voiceChannel.id,
+                guildId: guildId,
+                adapterCreator: message.guild.voiceAdapterCreator,
+            });
+            
+            connections.set(guildId, connection);
+            
+            // Đợi connection sẵn sàng
+            await entersState(connection, VoiceConnectionStatus.Ready, 30_000);
+        }
         
         // Tải audio file
         const audioPath = await downloadAudio(audioUrl);
@@ -105,19 +149,26 @@ async function handleGGCommand(message, args) {
         player.play(resource);
         
         // Xử lý khi phát xong
-        player.on(AudioPlayerStatus.Idle, () => {
+        player.once(AudioPlayerStatus.Idle, () => {
             // Thả reaction thành công
             message.react('✅').catch(console.error);
             
             // Xóa file tạm
-            fs.unlinkSync(audioPath);
+            if (fs.existsSync(audioPath)) {
+                fs.unlinkSync(audioPath);
+            }
             
-            // Kiểm tra và auto-leave sau 5s nếu không còn ai
-            checkAndAutoLeave(message.guild.id, voiceChannel);
+            // Xử lý item tiếp theo trong queue
+            processQueue(guildId);
+            
+            // Kiểm tra và auto-leave sau 5s nếu queue rỗng
+            if (queue.length === 0) {
+                checkAndAutoLeave(guildId, voiceChannel);
+            }
         });
         
         // Xử lý lỗi
-        player.on('error', (error) => {
+        player.once('error', (error) => {
             console.error('Player error:', error);
             message.react('❌').catch(console.error);
             
@@ -126,20 +177,16 @@ async function handleGGCommand(message, args) {
                 fs.unlinkSync(audioPath);
             }
             
-            connection.destroy();
-            connections.delete(message.guild.id);
+            // Xử lý item tiếp theo
+            processQueue(guildId);
         });
         
     } catch (error) {
-        console.error('Error in handleGGCommand:', error);
+        console.error('Error in processQueue:', error);
         message.react('❌').catch(console.error);
         
-        // Disconnect nếu có lỗi
-        const connection = connections.get(message.guild.id);
-        if (connection) {
-            connection.destroy();
-            connections.delete(message.guild.id);
-        }
+        // Xử lý item tiếp theo
+        processQueue(guildId);
     }
 }
 

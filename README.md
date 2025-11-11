@@ -6,6 +6,7 @@ Bot Discord đọc text bằng giọng Google TTS trong voice channel.
 
 - **Lệnh !gg**: Đọc text trong voice channel
 - **TTS tiếng Việt**: Sử dụng Google TTS với giọng tiếng Việt
+- **Queue System**: Hỗ trợ nhiều lệnh liên tiếp, tự động xếp hàng và đọc tuần tự
 - **Reactions**: Tự động thả ✅ (thành công) hoặc ❌ (thất bại)
 - **Auto-leave**: Tự động rời voice channel sau 5 giây nếu không còn ai
 - **Status**: Hiển thị "Đang chơi Lệnh !gg"
