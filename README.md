@@ -1,126 +1,173 @@
-# Discord TTS Bot - Lệnh !gg
+# Discord Google Search Bot
 
-Bot Discord đọc text bằng giọng Google TTS trong voice channel.
+Discord bot với chức năng tìm kiếm Google và tự động rời voice channel khi không có người.
 
 ## ✨ Tính năng
 
-- **Lệnh !gg**: Đọc text trong voice channel
-- **TTS tiếng Việt**: Sử dụng Google TTS với giọng tiếng Việt
-- **Queue System**: Hỗ trợ nhiều lệnh liên tiếp, tự động xếp hàng và đọc tuần tự
-- **Reactions**: Tự động thả ✅ (thành công) hoặc ❌ (thất bại)
-- **Auto-leave**: Tự động rời voice channel sau 5 giây nếu không còn ai
-- **Status**: Hiển thị "Đang chơi Lệnh !gg"
-
-## 📋 Yêu cầu
-
-- Node.js v16.9.0 trở lên
-- FFmpeg (cần cài đặt trên hệ thống)
+- 🔍 **Tìm kiếm Google**: Sử dụng lệnh `!gg <text>` để tìm kiếm
+- ✅ **Phản hồi trực quan**: Bot react ✅ khi thành công, ❌ khi lỗi
+- 🔊 **Auto-disconnect**: Tự động rời voice channel khi không còn ai
+- 🌐 **Multi-server**: Hoạt động độc lập trên nhiều server
+- 📊 **Uptime monitoring**: Endpoint `/ping` để theo dõi trạng thái
 
 ## 🚀 Cài đặt
 
-1. **Clone repository**
-```bash
-git clone <repository-url>
-cd dis_chi_gg
-```
+### 1. Cài đặt dependencies
 
-2. **Cài đặt dependencies**
 ```bash
 npm install
 ```
 
-3. **Cấu hình .env**
-File `.env` đã có sẵn với token bot của bạn:
+### 2. Cấu hình môi trường
+
+Tạo file `.env` với nội dung:
+
 ```env
-DISCORD_TOKEN=your_token_here
+DISCORD_TOKEN=your_discord_bot_token_here
 PREFIX=!
 PORT=10000
 ```
 
-## 🌐 Deploy lên Render
+### 3. Lấy Discord Bot Token
 
-Bot đã được cấu hình sẵn để deploy lên Render với file `render.yaml`.
+1. Truy cập [Discord Developer Portal](https://discord.com/developers/applications)
+2. Tạo New Application
+3. Vào tab **Bot** → Reset Token → Copy token
+4. Bật các Privileged Gateway Intents:
+   - ✅ Message Content Intent
+   - ✅ Server Members Intent
+   - ✅ Presence Intent
+5. Vào tab **OAuth2** → URL Generator
+6. Chọn scopes: `bot`
+7. Chọn permissions: 
+   - Send Messages
+   - Embed Links
+   - Add Reactions
+   - Connect (voice)
+   - Speak (voice)
+8. Copy URL và mời bot vào server
 
-**Uptime Monitoring**:
-- Endpoint `/ping`: `https://dis-chi-gg-g7lh.onrender.com/ping`
+### 4. Chạy bot locally
 
-Dùng các endpoint này với UptimeRobot hoặc các dịch vụ monitoring khác để giữ bot luôn online.
-
-## 🎮 Chạy Bot
-
-**Development mode (auto-restart)**:
-```bash
-npm run dev
-```
-
-**Production mode**:
 ```bash
 npm start
 ```
 
-## 📖 Hướng dẫn sử dụng
+## 📦 Deploy lên Render
 
-1. **Vào voice channel** mà bạn muốn bot đọc
-2. **Gửi lệnh** trong text channel:
-   ```
-   !gg Xin chào các bạn
-   ```
-3. Bot sẽ:
-   - Join vào voice channel của bạn
-   - Đọc text bằng giọng Google TTS
-   - Thả ✅ nếu thành công, ❌ nếu thất bại
-   - Tự động rời sau 5 giây nếu không còn ai
+### Cách 1: Deploy qua GitHub
 
-## ⚙️ Cấu hình Bot Discord
+1. Push code lên GitHub repository
+2. Truy cập [Render Dashboard](https://dashboard.render.com/)
+3. Click **New** → **Web Service**
+4. Connect GitHub repository của bạn
+5. Render sẽ tự động phát hiện `render.yaml`
+6. Thêm environment variable `DISCORD_TOKEN` trong Render dashboard
+7. Click **Deploy**
 
-1. Truy cập [Discord Developer Portal](https://discord.com/developers/applications)
-2. Chọn application của bạn
-3. Vào **Bot** → Bật các **Privileged Gateway Intents**:
-   - ✅ Presence Intent
-   - ✅ Server Members Intent
-   - ✅ Message Content Intent
-4. Vào **OAuth2** → **URL Generator**:
-   - Scopes: `bot`
-   - Bot Permissions: 
-     - View Channels
-     - Send Messages
-     - Add Reactions
-     - Connect
-     - Speak
+### Cách 2: Deploy trực tiếp
 
-## 🛠️ Cấu trúc dự án
-
-```
-dis_chi_gg/
-├── index.js          # File chính của bot
-├── package.json      # Dependencies
-├── .env             # Biến môi trường (token, prefix)
-├── .gitignore       # Files bỏ qua khi commit
-├── temp/            # Thư mục lưu file audio tạm (auto-generated)
-└── README.md        # File này
+1. Cài đặt Render CLI:
+```bash
+npm install -g render-cli
 ```
 
-## 📝 Lưu ý
+2. Login vào Render:
+```bash
+render login
+```
 
-- Bot chỉ hỗ trợ 1 lệnh duy nhất: `!gg`
-- Text được đọc bằng giọng tiếng Việt
-- File audio tạm sẽ tự động bị xóa sau khi phát
-- Bot tự động rời voice channel sau 5 giây nếu không còn ai (trừ bot)
+3. Deploy:
+```bash
+render deploy
+```
 
-## 🐛 Xử lý lỗi thường gặp
+## 🎮 Sử dụng
 
-**Bot không join voice channel**:
-- Kiểm tra quyền Connect và Speak của bot
-- Kiểm tra bạn đã vào voice channel chưa
+### Lệnh `!gg`
 
-**Không có âm thanh**:
-- Kiểm tra FFmpeg đã cài đặt đúng chưa
-- Kiểm tra quyền Speak của bot
+Tìm kiếm trên Google:
 
-**Bot crash**:
-- Kiểm tra token trong file `.env`
-- Kiểm tra Message Content Intent đã bật chưa
+```
+!gg discord bot tutorial
+!gg javascript async await
+!gg best pizza near me
+```
+
+Bot sẽ trả về top 5 kết quả tìm kiếm với:
+- Tiêu đề
+- Mô tả ngắn
+- Link trực tiếp
+
+### Auto-disconnect
+
+Bot sẽ tự động rời khỏi voice channel khi:
+- Không còn người dùng nào trong channel (chỉ còn bot)
+- Được check mỗi khi có người rời channel
+
+## 🔧 API Endpoints
+
+### GET /ping
+
+Health check endpoint cho uptime monitoring:
+
+```json
+{
+  "status": "online",
+  "uptime": 12345.67,
+  "timestamp": "2024-01-01T00:00:00.000Z"
+}
+```
+
+### GET /
+
+Simple status page
+
+## 📝 Environment Variables
+
+| Variable | Mô tả | Mặc định |
+|----------|-------|----------|
+| `DISCORD_TOKEN` | Discord bot token (bắt buộc) | - |
+| `PREFIX` | Prefix cho lệnh | `!` |
+| `PORT` | Port cho web server | `10000` |
+
+## 🛠️ Tech Stack
+
+- **discord.js v14**: Discord API wrapper
+- **@discordjs/voice**: Voice channel support
+- **google-it**: Google search functionality
+- **express**: Web server cho health checks
+- **dotenv**: Environment variable management
+
+## 📊 Multi-server Support
+
+Bot tự động quản lý riêng biệt cho mỗi server:
+- Voice connections riêng cho mỗi guild
+- Commands xử lý độc lập
+- Không có xung đột giữa các server
+
+## 🐛 Troubleshooting
+
+### Bot không phản hồi lệnh
+
+- Kiểm tra bot có quyền `Send Messages` và `Embed Links`
+- Kiểm tra **Message Content Intent** đã bật trong Developer Portal
+- Kiểm tra prefix đúng (mặc định `!`)
+
+### Bot không tự động disconnect
+
+- Kiểm tra bot có quyền `Connect` và `View Channel`
+- Kiểm tra **Voice State Intent** đã bật
+
+### Lỗi khi search Google
+
+- Kiểm tra kết nối internet
+- Google có thể rate-limit, thử lại sau vài giây
 
 ## 📄 License
 
-DELL CÓ LUẬT
+ISC
+
+## 👤 Support
+
+Nếu có vấn đề, tạo issue trên GitHub repository.

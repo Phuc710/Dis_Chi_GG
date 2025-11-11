@@ -1,20 +1,16 @@
 services:
   - type: web
-    name: dis-chi-gg
+    name: discord-google-bot
     env: node
     region: singapore
     plan: free
-    buildCommand: |
-      apt-get update
-      apt-get install -y python3 make g++ libsodium-dev
-      npm install
+    buildCommand: npm install
     startCommand: npm start
     envVars:
-      - key: NODE_VERSION
-        value: "18.17.0"
       - key: DISCORD_TOKEN
         sync: false
       - key: PREFIX
         value: "!"
       - key: PORT
         value: "10000"
+    healthCheckPath: /ping
