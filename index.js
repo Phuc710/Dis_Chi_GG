@@ -1,4 +1,12 @@
 require('dotenv').config();
+
+// Initialize libsodium for Discord voice encryption
+const sodium = require('libsodium-wrappers');
+(async () => {
+    await sodium.ready;
+    console.log('✅ Sodium library initialized');
+})();
+
 const { Client, GatewayIntentBits } = require('discord.js');
 const { joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerStatus, VoiceConnectionStatus } = require('@discordjs/voice');
 const express = require('express');

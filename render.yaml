@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: discord-google-bot
+    name: discord-tts-bot
     env: node
     region: singapore
     plan: free
@@ -9,8 +9,6 @@ services:
     envVars:
       - key: DISCORD_TOKEN
         sync: false
-      - key: PREFIX
-        value: "!"
       - key: PORT
-        value: "10000"
+        value: "3000"
     healthCheckPath: /ping
