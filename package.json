@@ -1,7 +1,7 @@
 {
   "name": "discord-gg-bot",
   "version": "1.0.0",
-  "description": "Discord bot with !gg command for TTS in voice channels",
+  "description": "CHỊ GG",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",

@@ -36,10 +36,14 @@ PREFIX=!
 PORT=10000
 ```
 
-4. **Cài đặt FFmpeg**
-   - **Windows**: Tải từ [ffmpeg.org](https://ffmpeg.org/download.html) và thêm vào PATH
-   - **Linux**: `sudo apt install ffmpeg`
-   - **macOS**: `brew install ffmpeg`
+## 🌐 Deploy lên Render
+
+Bot đã được cấu hình sẵn để deploy lên Render với file `render.yaml`.
+
+**Uptime Monitoring**:
+- Endpoint `/ping`: `https://dis-chi-gg-g7lh.onrender.com/ping`
+
+Dùng các endpoint này với UptimeRobot hoặc các dịch vụ monitoring khác để giữ bot luôn online.
 
 ## 🎮 Chạy Bot
 
@@ -118,4 +122,4 @@ dis_chi_gg/
 
 ## 📄 License
 
-ISC
+DELL CÓ LUẬT

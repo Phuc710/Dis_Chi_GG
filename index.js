@@ -238,6 +238,14 @@ const server = http.createServer((req, res) => {
             bot: client.user ? client.user.tag : 'connecting...',
             uptime: process.uptime()
         }));
+    } else if (req.url === '/ping') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ 
+            status: 'success',
+            message: 'pong',
+            timestamp: new Date().toISOString(),
+            bot: client.user ? client.user.tag : 'connecting...'
+        }));
     } else {
         res.writeHead(404);
         res.end('Not Found');
