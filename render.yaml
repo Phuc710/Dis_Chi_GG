@@ -2,11 +2,16 @@ services:
   - type: web
     name: dis-chi-gg
     env: node
-    buildCommand: npm install
+    region: singapore
+    plan: free
+    buildCommand: |
+      apt-get update
+      apt-get install -y python3 make g++ libsodium-dev
+      npm install
     startCommand: npm start
     envVars:
       - key: NODE_VERSION
-        value: 18.17.0
+        value: "18.17.0"
       - key: DISCORD_TOKEN
         sync: false
       - key: PREFIX
