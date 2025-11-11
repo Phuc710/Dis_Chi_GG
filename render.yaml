@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: discord-gg-bot
+    env: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: DISCORD_TOKEN
+        sync: false
+      - key: PREFIX
+        value: "!"
+      - key: PORT
+        value: "10000"
