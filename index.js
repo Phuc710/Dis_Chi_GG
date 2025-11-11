@@ -1,166 +1,230 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
-const { joinVoiceChannel, getVoiceConnection } = require('@discordjs/voice');
+const { Client, GatewayIntentBits } = require('discord.js');
+const { joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerStatus, VoiceConnectionStatus } = require('@discordjs/voice');
 const express = require('express');
-const googleIt = require('google-it');
+const gtts = require('gtts');
+const fs = require('fs');
+const path = require('path');
 
-// Initialize Express for uptime monitoring
-const app = express();
-const PORT = process.env.PORT || 10000;
-
-// Health check endpoint
-app.get('/ping', (req, res) => {
-  res.status(200).json({
-    status: 'online',
-    uptime: process.uptime(),
-    timestamp: new Date().toISOString()
-  });
-});
-
-app.get('/', (req, res) => {
-  res.status(200).send('Discord Bot is running!');
-});
-
-// Start Express server
-app.listen(PORT, () => {
-  console.log(`✅ Web server running on port ${PORT}`);
-});
-
-// Initialize Discord bot
 const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent,
-    GatewayIntentBits.GuildVoiceStates
-  ]
+    intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent,
+        GatewayIntentBits.GuildVoiceStates
+    ]
 });
 
-const PREFIX = process.env.PREFIX || '!';
+const app = express();
+const PORT = process.env.PORT || 3000;
 
-// Track voice connections per guild
+// Store voice connections per guild
 const voiceConnections = new Map();
+const audioPlayers = new Map();
 
-// Check voice channel for empty status
-function checkVoiceChannel(guildId) {
-  const connection = getVoiceConnection(guildId);
-  if (!connection) return;
+// Web server for uptime monitoring
+app.get('/', (req, res) => {
+    res.json({
+        status: 'online',
+        bot: 'Chị Google - Discord TTS Bot',
+        uptime: process.uptime(),
+        timestamp: new Date().toISOString()
+    });
+});
 
-  const guild = client.guilds.cache.get(guildId);
-  if (!guild) return;
+app.get('/ping', (req, res) => {
+    res.json({
+        message: 'pong',
+        timestamp: new Date().toISOString(),
+        latency: client.ws ? `${client.ws.ping}ms` : 'N/A'
+    });
+});
 
-  const voiceChannel = guild.channels.cache.get(connection.joinConfig.channelId);
-  if (!voiceChannel) return;
+app.listen(PORT, () => {
+    console.log(`🌐 Web server running on port ${PORT}`);
+});
 
-  // Count non-bot members in voice channel
-  const humanMembers = voiceChannel.members.filter(member => !member.user.bot);
-  
-  if (humanMembers.size === 0) {
-    console.log(`🚪 No humans left in voice channel, disconnecting from ${guild.name}`);
-    connection.destroy();
-    voiceConnections.delete(guildId);
-  }
+// Bot ready event
+client.once('ready', () => {
+    console.log(`✅ Chị Google is online as ${client.user.tag}`);
+    console.log(`🤖 Serving ${client.guilds.cache.size} servers`);
+    
+    // Set bot status
+    client.user.setActivity('!gg <text> để đọc text', { type: 'LISTENING' });
+});
+
+// Voice state update - auto disconnect when voice channel is empty
+client.on('voiceStateUpdate', (oldState, newState) => {
+    const guildId = newState.guild.id;
+    const connection = voiceConnections.get(guildId);
+    
+    if (connection && connection.joinConfig.channelId) {
+        const channel = client.channels.cache.get(connection.joinConfig.channelId);
+        
+        if (channel) {
+            // Count non-bot members in the voice channel
+            const nonBotMembers = channel.members.filter(member => !member.user.bot);
+            
+            // If no human members left, disconnect
+            if (nonBotMembers.size === 0) {
+                console.log(`🔇 Auto-disconnecting from empty voice channel in ${newState.guild.name}`);
+                connection.destroy();
+                voiceConnections.delete(guildId);
+                audioPlayers.delete(guildId);
+            }
+        }
+    }
+});
+
+// Function to create TTS audio file
+async function createTTSFile(text, lang = 'vi') {
+    return new Promise((resolve, reject) => {
+        const tts = new gtts(text, lang);
+        const filename = `tts_${Date.now()}.mp3`;
+        const filepath = path.join(__dirname, filename);
+        
+        tts.save(filepath, (err) => {
+            if (err) {
+                reject(err);
+            } else {
+                resolve(filepath);
+            }
+        });
+    });
 }
 
-// Monitor voice state updates
-client.on('voiceStateUpdate', (oldState, newState) => {
-  // Check if someone left a channel that the bot is in
-  if (oldState.channel && oldState.guild.members.me.voice.channel?.id === oldState.channel.id) {
-    setTimeout(() => checkVoiceChannel(oldState.guild.id), 1000);
-  }
-});
-
-client.on('ready', () => {
-  console.log(`✅ Bot logged in as ${client.user.tag}`);
-  console.log(`📊 Serving ${client.guilds.cache.size} servers`);
-  client.user.setActivity('!gg <text>', { type: 'LISTENING' });
-});
-
-client.on('messageCreate', async (message) => {
-  // Ignore bot messages
-  if (message.author.bot) return;
-  
-  // Ignore messages without prefix
-  if (!message.content.startsWith(PREFIX)) return;
-
-  const args = message.content.slice(PREFIX.length).trim().split(/ +/);
-  const command = args.shift().toLowerCase();
-
-  // !gg command - Google search
-  if (command === 'gg') {
-    if (args.length === 0) {
-      return message.reply('❌ Vui lòng nhập từ khóa tìm kiếm! Ví dụ: `!gg discord bot`');
+// Function to join voice channel and play TTS
+async function playTTS(message, text) {
+    const voiceChannel = message.member.voice.channel;
+    
+    if (!voiceChannel) {
+        await message.reply('❌ Bạn cần vào voice channel trước!');
+        return;
     }
-
-    const searchQuery = args.join(' ');
     
     try {
-      // Show typing indicator
-      await message.channel.sendTyping();
-      
-      console.log(`🔍 Searching Google for: "${searchQuery}" in server: ${message.guild.name}`);
-      
-      // Perform Google search
-      const results = await googleIt({ query: searchQuery, limit: 5 });
-      
-      if (!results || results.length === 0) {
-        await message.reply('❌ Không tìm thấy kết quả nào!');
-        return;
-      }
-
-      // Create embed with results
-      const embed = new EmbedBuilder()
-        .setColor('#4285F4')
-        .setTitle(`🔍 Kết quả tìm kiếm: "${searchQuery}"`)
-        .setTimestamp()
-        .setFooter({ text: `Yêu cầu bởi ${message.author.tag}`, iconURL: message.author.displayAvatarURL() });
-
-      // Add up to 5 results
-      results.slice(0, 5).forEach((result, index) => {
-        embed.addFields({
-          name: `${index + 1}. ${result.title || 'No title'}`,
-          value: `${result.snippet || 'No description'}\n[🔗 Link](${result.link})`,
-          inline: false
+        const guildId = message.guild.id;
+        
+        // Join voice channel
+        const connection = joinVoiceChannel({
+            channelId: voiceChannel.id,
+            guildId: guildId,
+            adapterCreator: message.guild.voiceAdapterCreator,
         });
-      });
-
-      await message.reply({ embeds: [embed] });
-      
-      // React with success
-      await message.react('✅');
-      console.log(`✅ Search completed successfully for: "${searchQuery}"`);
-      
+        
+        voiceConnections.set(guildId, connection);
+        
+        // Wait for connection to be ready
+        await new Promise((resolve, reject) => {
+            connection.on(VoiceConnectionStatus.Ready, resolve);
+            connection.on(VoiceConnectionStatus.Disconnected, reject);
+            setTimeout(reject, 10000); // 10 second timeout
+        });
+        
+        console.log(`🎤 Joined voice channel in ${message.guild.name}`);
+        
+        // Create TTS file
+        const audioFile = await createTTSFile(text, 'vi');
+        
+        // Create audio player
+        const player = createAudioPlayer();
+        audioPlayers.set(guildId, player);
+        
+        // Create audio resource
+        const resource = createAudioResource(audioFile);
+        
+        // Play audio
+        player.play(resource);
+        connection.subscribe(player);
+        
+        // Handle player events
+        player.on(AudioPlayerStatus.Playing, () => {
+            console.log(`🔊 Playing TTS: "${text.substring(0, 50)}..." in ${message.guild.name}`);
+        });
+        
+        player.on(AudioPlayerStatus.Idle, () => {
+            console.log(`✅ Finished playing TTS in ${message.guild.name}`);
+            
+            // Clean up audio file
+            fs.unlink(audioFile, (err) => {
+                if (err) console.error('Error deleting audio file:', err);
+            });
+        });
+        
+        player.on('error', (error) => {
+            console.error('Audio player error:', error);
+            
+            // Clean up audio file
+            fs.unlink(audioFile, (err) => {
+                if (err) console.error('Error deleting audio file:', err);
+            });
+        });
+        
+        await message.react('✅');
+        
     } catch (error) {
-      console.error('❌ Google search error:', error);
-      await message.reply('❌ Có lỗi xảy ra khi tìm kiếm trên Google!');
-      
-      // React with error
-      try {
+        console.error('❌ TTS error:', error);
         await message.react('❌');
-      } catch (reactError) {
-        console.error('Failed to react:', reactError);
-      }
+        await message.reply('❌ Có lỗi xảy ra khi đọc text. Vui lòng thử lại!');
     }
-  }
+}
+
+// Message handler
+client.on('messageCreate', async (message) => {
+    // Ignore bot messages
+    if (message.author.bot) return;
+    
+    // Check if message starts with !gg
+    if (!message.content.startsWith('!gg ')) return;
+    
+    // Extract text to read
+    const textToRead = message.content.slice(4).trim();
+    
+    if (!textToRead) {
+        await message.reply('❌ Vui lòng nhập text để đọc!\nVí dụ: `!gg Xin chào các bạn`');
+        return;
+    }
+    
+    // Limit text length
+    if (textToRead.length > 500) {
+        await message.reply('❌ Text quá dài! Tối đa 500 ký tự.');
+        return;
+    }
+    
+    console.log(`🗣️ TTS request: "${textToRead}" in ${message.guild.name} by ${message.author.username}`);
+    
+    // Play TTS
+    await playTTS(message, textToRead);
 });
 
 // Error handling
-client.on('error', (error) => {
-  console.error('Discord client error:', error);
+client.on('error', console.error);
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.log('Unhandled Rejection at:', promise, 'reason:', reason);
 });
 
-process.on('unhandledRejection', (error) => {
-  console.error('Unhandled promise rejection:', error);
+// Graceful shutdown
+process.on('SIGINT', () => {
+    console.log('🛑 Shutting down...');
+    
+    // Disconnect all voice connections
+    voiceConnections.forEach((connection) => {
+        connection.destroy();
+    });
+    
+    client.destroy();
+    process.exit(0);
 });
 
 // Login to Discord
 const token = process.env.DISCORD_TOKEN;
 if (!token) {
-  console.error('❌ DISCORD_TOKEN not found in environment variables!');
-  process.exit(1);
+    console.error('❌ DISCORD_TOKEN not found in environment variables!');
+    process.exit(1);
 }
 
 client.login(token).catch(error => {
-  console.error('❌ Failed to login:', error);
-  process.exit(1);
+    console.error('❌ Failed to login:', error);
+    process.exit(1);
 });

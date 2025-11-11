@@ -1,127 +1,141 @@
-# Discord Google Search Bot
+# Chị Google - Discord TTS Bot
 
-Discord bot với chức năng tìm kiếm Google và tự động rời voice channel khi không có người.
+A Discord bot that reads text aloud in voice channels using Text-to-Speech (TTS) technology, just like Google Assistant!
 
-## ✨ Tính năng
+## Features
 
-- 🔍 **Tìm kiếm Google**: Sử dụng lệnh `!gg <text>` để tìm kiếm
-- ✅ **Phản hồi trực quan**: Bot react ✅ khi thành công, ❌ khi lỗi
-- 🔊 **Auto-disconnect**: Tự động rời voice channel khi không còn ai
-- 🌐 **Multi-server**: Hoạt động độc lập trên nhiều server
-- 📊 **Uptime monitoring**: Endpoint `/ping` để theo dõi trạng thái
+- 🗣️ **Text-to-Speech**: Use `!gg <text>` to make the bot read text in Vietnamese voice
+- 🎤 **Voice Channel Join**: Automatically joins your voice channel to speak
+- 🔇 **Auto Disconnect**: Automatically leaves when voice channel is empty
+- 🌐 **Multi-Server**: Works independently across multiple Discord servers
+- 📊 **Uptime Monitoring**: Built-in web server with `/ping` endpoint
+- ✅ **Smart Reactions**: Reacts with ✅ for success, ❌ for errors
+- 🚀 **Render Ready**: Configured for easy deployment on Render
 
-## 🚀 Cài đặt
+## Commands
 
-### 1. Cài đặt dependencies
+### `!gg <text to read>`
+Bot joins your voice channel and reads the text aloud in Vietnamese.
 
-```bash
-npm install
+**Examples:**
+```
+!gg Xin chào các bạn
+!gg Hôm nay trời đẹp quá
+!gg Bot này rất hay đúng không
 ```
 
-### 2. Cấu hình môi trường
+**Requirements:**
+- You must be in a voice channel
+- Text limit: 500 characters
+- Language: Vietnamese (vi)
 
-Tạo file `.env` với nội dung:
+## Setup Instructions
 
+### 1. Discord Bot Setup
+1. Go to [Discord Developer Portal](https://discord.com/developers/applications)
+2. Click "New Application" and give it a name
+3. Go to "Bot" section and click "Reset Token"
+4. Copy the token (you'll need this for deployment)
+5. Enable "Message Content Intent" in Bot settings
+6. Go to "OAuth2" → "URL Generator"
+7. Select scopes: `bot`
+8. Select permissions: `Send Messages`, `Add Reactions`, `Connect`, `Speak`, `Use Voice Activity`
+9. Copy the generated URL and invite the bot to your server
+
+### 2. Environment Variables
+Create a `.env` file with:
 ```env
 DISCORD_TOKEN=your_discord_bot_token_here
-PREFIX=!
-PORT=10000
+PORT=3000
 ```
 
-### 3. Lấy Discord Bot Token
-
-1. Truy cập [Discord Developer Portal](https://discord.com/developers/applications)
-2. Tạo New Application
-3. Vào tab **Bot** → Reset Token → Copy token
-4. Bật các Privileged Gateway Intents:
-   - ✅ Message Content Intent
-   - ✅ Server Members Intent
-   - ✅ Presence Intent
-5. Vào tab **OAuth2** → URL Generator
-6. Chọn scopes: `bot`
-7. Chọn permissions: 
-   - Send Messages
-   - Embed Links
-   - Add Reactions
-   - Connect (voice)
-   - Speak (voice)
-8. Copy URL và mời bot vào server
-
-### 4. Chạy bot locally
-
+### 3. Local Development
 ```bash
+npm install
 npm start
 ```
 
-## 📦 Deploy lên Render
+### 4. Deploy to Render
+1. Push your code to GitHub
+2. Go to [Render Dashboard](https://dashboard.render.com/)
+3. Click "New" → "Web Service"
+4. Connect your GitHub repository
+5. Render will automatically detect the `render.yaml` configuration
+6. Add Environment Variable:
+   - Key: `DISCORD_TOKEN`
+   - Value: (your bot token from step 1)
+7. Click "Deploy"
 
-### Cách 1: Deploy qua GitHub
+## Usage
 
-1. Push code lên GitHub repository
-2. Truy cập [Render Dashboard](https://dashboard.render.com/)
-3. Click **New** → **Web Service**
-4. Connect GitHub repository của bạn
-5. Render sẽ tự động phát hiện `render.yaml`
-6. Thêm environment variable `DISCORD_TOKEN` trong Render dashboard
-7. Click **Deploy**
+1. Invite the bot to your Discord server
+2. Join a voice channel
+3. Use `!gg <text>` in any text channel
+4. Bot will join your voice channel and read the text
+5. Bot reacts with ✅ for successful TTS, ❌ for errors
 
-### Cách 2: Deploy trực tiếp
+## Voice Channel Management
 
-1. Cài đặt Render CLI:
-```bash
-npm install -g render-cli
+- Bot automatically joins your current voice channel
+- Bot automatically disconnects when no users are present
+- Each server operates independently
+- Supports multiple servers simultaneously
+
+## Monitoring
+
+After deployment, you can monitor your bot:
+- **Status Page**: `https://your-app.onrender.com/`
+- **Health Check**: `https://your-app.onrender.com/ping`
+
+## Technical Details
+
+- **Framework**: Discord.js v14
+- **TTS Engine**: Google Text-to-Speech (gtts)
+- **Voice**: @discordjs/voice
+- **Web Server**: Express.js
+- **Deployment**: Render with automatic builds
+- **Node Version**: 18+
+- **Language**: Vietnamese (vi)
+
+## File Structure
+```
+├── index.js          # Main bot code
+├── package.json      # Dependencies and scripts
+├── render.yaml       # Render deployment config
+├── README.md         # This file
+└── .env.example      # Environment variables template
 ```
 
-2. Login vào Render:
-```bash
-render login
-```
+## Dependencies
 
-3. Deploy:
-```bash
-render deploy
-```
+- `discord.js`: Discord API wrapper
+- `@discordjs/voice`: Voice connection handling
+- `@discordjs/opus`: Audio encoding
+- `gtts`: Google Text-to-Speech
+- `express`: Web server for uptime monitoring
+- `fluent-ffmpeg`: Audio processing
+- `prism-media`: Audio streaming
+- `dotenv`: Environment variable management
 
-## 🎮 Sử dụng
+## Limitations
 
-### Lệnh `!gg`
+- Text limit: 500 characters per message
+- Language: Vietnamese only
+- Requires voice channel permissions
+- Audio files are temporarily stored and auto-deleted
 
-Tìm kiếm trên Google:
+## Support
 
-```
-!gg discord bot tutorial
-!gg javascript async await
-!gg best pizza near me
-```
+If you encounter any issues:
+1. Check that your Discord token is correct
+2. Ensure the bot has voice permissions in your server
+3. Verify that Message Content Intent is enabled
+4. Make sure you're in a voice channel when using `!gg`
+5. Check the logs in Render dashboard for errors
 
-Bot sẽ trả về top 5 kết quả tìm kiếm với:
-- Tiêu đề
-- Mô tả ngắn
-- Link trực tiếp
+## License
 
-### Auto-disconnect
-
-Bot sẽ tự động rời khỏi voice channel khi:
-- Không còn người dùng nào trong channel (chỉ còn bot)
-- Được check mỗi khi có người rời channel
-
-## 🔧 API Endpoints
-
-### GET /ping
-
-Health check endpoint cho uptime monitoring:
-
-```json
-{
-  "status": "online",
-  "uptime": 12345.67,
-  "timestamp": "2024-01-01T00:00:00.000Z"
-}
-```
-
-### GET /
-
-Simple status page
+MIT License - Feel free to modify and distribute!
 
 ## 📝 Environment Variables
 
